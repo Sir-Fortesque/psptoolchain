@@ -1,6 +1,6 @@
 diff --unified -rN a/config.sub b/config.sub
---- a/config.sub	2018-01-03 05:25:18.000000000 +0100
-+++ b/config.sub	2019-04-11 11:48:30.936991476 +0200
+--- a/config.sub	2020-05-18 14:31:02.188576849 +1000
++++ b/config.sub	2020-05-18 14:44:26.556597133 +1000
 @@ -632,6 +632,10 @@
  				basic_machine=ymp-cray
  				os=unicos
@@ -32,9 +32,9 @@ diff --unified -rN a/config.sub b/config.sub
  			| mn10200 | mn10300 \
  			| moxie \
 diff --unified -rN a/gcc/config/mips/allegrex.md b/gcc/config/mips/allegrex.md
---- a/gcc/config/mips/allegrex.md	1970-01-01 01:00:00.000000000 +0100
-+++ b/gcc/config/mips/allegrex.md	2019-04-11 11:48:30.936991476 +0200
-@@ -0,0 +1,172 @@
+--- a/gcc/config/mips/allegrex.md	1970-01-01 10:00:00.000000000 +1000
++++ b/gcc/config/mips/allegrex.md	2020-05-18 14:44:26.620597134 +1000
+@@ -0,0 +1,182 @@
 +;; Sony ALLEGREX instructions.
 +;; Copyright (C) 2005 Free Software Foundation, Inc.
 +;;
@@ -56,6 +56,7 @@ diff --unified -rN a/gcc/config/mips/allegrex.md b/gcc/config/mips/allegrex.md
 +;; Boston, MA 02111-1307, USA.
 +
 +(define_c_enum "unspec" [
++  UNSPEC_WSBW
 +  UNSPEC_CLO
 +  UNSPEC_CTO
 +  UNSPEC_CACHE
@@ -117,6 +118,15 @@ diff --unified -rN a/gcc/config/mips/allegrex.md b/gcc/config/mips/allegrex.md
 +          UNSPEC_BITREV))]
 +  "TARGET_ALLEGREX"
 +  "bitrev\t%0,%1"
++  [(set_attr "type"    "arith")
++   (set_attr "mode"    "SI")])
++
++(define_insn "allegrex_wsbw"
++  [(set (match_operand:SI 0 "register_operand" "=d")
++       (unspec:SI [(match_operand:SI 1 "register_operand" "d")]
++                  UNSPEC_WSBW))]
++  "TARGET_ALLEGREX"
++  "wsbw\t%0,%1"
 +  [(set_attr "type"    "arith")
 +   (set_attr "mode"    "SI")])
 +
@@ -208,9 +218,9 @@ diff --unified -rN a/gcc/config/mips/allegrex.md b/gcc/config/mips/allegrex.md
 +  [(set_attr "type"    "fcvt")
 +   (set_attr "mode"    "SF")])
 diff --unified -rN a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
---- a/gcc/config/mips/mips.c	2018-03-01 12:37:35.000000000 +0100
-+++ b/gcc/config/mips/mips.c	2019-04-11 11:48:30.936991476 +0200
-@@ -253,7 +253,12 @@
+--- a/gcc/config/mips/mips.c	2020-05-18 14:31:02.296576852 +1000
++++ b/gcc/config/mips/mips.c	2020-05-18 14:44:26.620597134 +1000
+@@ -263,7 +263,12 @@
    MIPS_BUILTIN_MSA_TEST_BRANCH,
  
    /* For generating bposge32 branch instructions in MIPS32 DSP ASE.  */
@@ -224,7 +234,7 @@ diff --unified -rN a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
  };
  
  /* Invoke MACRO (COND) for each C.cond.fmt condition.  */
-@@ -460,6 +465,10 @@
+@@ -470,6 +475,10 @@
     normal branch.  */
  static bool mips_branch_likely;
  
@@ -235,7 +245,7 @@ diff --unified -rN a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
  /* The current instruction-set architecture.  */
  enum processor mips_arch;
  const struct mips_cpu_info *mips_arch_info;
-@@ -820,6 +829,9 @@
+@@ -830,6 +839,9 @@
  		     1,           /* branch_cost */
  		     4            /* memory_latency */
    },
@@ -245,15 +255,15 @@ diff --unified -rN a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
    { /* Loongson-2E */
      DEFAULT_COSTS
    },
-@@ -15181,6 +15193,7 @@
+@@ -15260,6 +15272,7 @@
  AVAIL_NON_MIPS16 (dspr2_32, !TARGET_64BIT && TARGET_DSPR2)
- AVAIL_NON_MIPS16 (loongson, TARGET_LOONGSON_VECTORS)
+ AVAIL_NON_MIPS16 (loongson, TARGET_LOONGSON_MMI)
  AVAIL_NON_MIPS16 (cache, TARGET_CACHE_BUILTIN)
 +AVAIL_NON_MIPS16 (allegrex, TARGET_ALLEGREX)
  AVAIL_NON_MIPS16 (msa, TARGET_MSA)
  
  /* Construct a mips_builtin_description from the given arguments.
-@@ -15278,6 +15291,30 @@
+@@ -15357,6 +15370,30 @@
    MIPS_BUILTIN (bposge, f, "bposge" #VALUE,				\
  		MIPS_BUILTIN_BPOSGE ## VALUE, MIPS_SI_FTYPE_VOID, AVAIL)
  
@@ -284,7 +294,7 @@ diff --unified -rN a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
  /* Define a Loongson MIPS_BUILTIN_DIRECT function __builtin_loongson_<FN_NAME>
     for instruction CODE_FOR_loongson_<INSN>.  FUNCTION_TYPE is a
     builtin_description field.  */
-@@ -15753,6 +15790,38 @@
+@@ -15832,6 +15869,39 @@
    DIRECT_BUILTIN (dpsqx_s_w_ph, MIPS_DI_FTYPE_DI_V2HI_V2HI, dspr2_32),
    DIRECT_BUILTIN (dpsqx_sa_w_ph, MIPS_DI_FTYPE_DI_V2HI_V2HI, dspr2_32),
  
@@ -299,6 +309,7 @@ diff --unified -rN a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
 +   duplicate patterns specifically for the ALLEGREX (as Sony does).  */
 +
 +  DIRECT_ALLEGREX_BUILTIN(bitrev, MIPS_SI_FTYPE_SI, 0),
++  DIRECT_ALLEGREX_BUILTIN(wsbw, MIPS_SI_FTYPE_SI, 0),
 +  DIRECT_ALLEGREX_NAMED_BUILTIN(clz, clzsi2, MIPS_SI_FTYPE_SI, 0),
 +  DIRECT_ALLEGREX_BUILTIN(clo, MIPS_SI_FTYPE_SI, 0),
 +  //DIRECT_ALLEGREX_NAMED_BUILTIN(ctz, ctzsi2, MIPS_SI_FTYPE_SI, 0),
@@ -323,7 +334,7 @@ diff --unified -rN a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
    /* Builtin functions for ST Microelectronics Loongson-2E/2F cores.  */
    LOONGSON_BUILTIN (packsswh, MIPS_V4HI_FTYPE_V2SI_V2SI),
    LOONGSON_BUILTIN (packsshb, MIPS_V8QI_FTYPE_V4HI_V4HI),
-@@ -16441,6 +16510,7 @@
+@@ -16520,6 +16590,7 @@
  #define MIPS_ATYPE_UQI unsigned_intQI_type_node
  #define MIPS_ATYPE_HI intHI_type_node
  #define MIPS_ATYPE_SI intSI_type_node
@@ -331,7 +342,7 @@ diff --unified -rN a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
  #define MIPS_ATYPE_USI unsigned_intSI_type_node
  #define MIPS_ATYPE_DI intDI_type_node
  #define MIPS_ATYPE_UDI unsigned_intDI_type_node
-@@ -17112,6 +17182,26 @@
+@@ -17204,6 +17275,26 @@
  				       const1_rtx, const0_rtx);
  }
  
@@ -358,7 +369,7 @@ diff --unified -rN a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
  /* Implement TARGET_EXPAND_BUILTIN.  */
  
  static rtx
-@@ -17160,6 +17250,9 @@
+@@ -17252,6 +17343,9 @@
  
      case MIPS_BUILTIN_BPOSGE32:
        return mips_expand_builtin_bposge (d->builtin_type, target);
@@ -368,7 +379,7 @@ diff --unified -rN a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
      }
    gcc_unreachable ();
  }
-@@ -20212,6 +20305,22 @@
+@@ -20396,6 +20490,22 @@
    if (TARGET_HARD_FLOAT_ABI && TARGET_MIPS5900)
      REAL_MODE_FORMAT (SFmode) = &spu_single_format;
  
@@ -392,8 +403,8 @@ diff --unified -rN a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
  }
  
 diff --unified -rN a/gcc/config/mips/mips-cpus.def b/gcc/config/mips/mips-cpus.def
---- a/gcc/config/mips/mips-cpus.def	2018-01-03 11:03:58.000000000 +0100
-+++ b/gcc/config/mips/mips-cpus.def	2019-04-11 11:48:30.936991476 +0200
+--- a/gcc/config/mips/mips-cpus.def	2020-05-18 14:31:02.296576852 +1000
++++ b/gcc/config/mips/mips-cpus.def	2020-05-18 14:44:26.620597134 +1000
 @@ -62,6 +62,7 @@
  
  /* MIPS II processors.  */
@@ -403,8 +414,8 @@ diff --unified -rN a/gcc/config/mips/mips-cpus.def b/gcc/config/mips/mips-cpus.d
  /* MIPS III processors.  */
  MIPS_CPU ("r4000", PROCESSOR_R4000, 3, 0)
 diff --unified -rN a/gcc/config/mips/mips-ftypes.def b/gcc/config/mips/mips-ftypes.def
---- a/gcc/config/mips/mips-ftypes.def	2018-01-03 11:03:58.000000000 +0100
-+++ b/gcc/config/mips/mips-ftypes.def	2019-04-11 11:48:30.936991476 +0200
+--- a/gcc/config/mips/mips-ftypes.def	2020-05-18 14:31:02.296576852 +1000
++++ b/gcc/config/mips/mips-ftypes.def	2020-05-18 14:44:26.620597134 +1000
 @@ -44,6 +44,8 @@
  DEF_MIPS_FTYPE (3, (DI, DI, V2HI, V2HI))
  DEF_MIPS_FTYPE (3, (DI, DI, V4QI, V4QI))
@@ -431,9 +442,9 @@ diff --unified -rN a/gcc/config/mips/mips-ftypes.def b/gcc/config/mips/mips-ftyp
  DEF_MIPS_FTYPE (3, (VOID, V4SI, CVPOINTER, SI))
  DEF_MIPS_FTYPE (3, (VOID, V8HI, CVPOINTER, SI))
 diff --unified -rN a/gcc/config/mips/mips.h b/gcc/config/mips/mips.h
---- a/gcc/config/mips/mips.h	2018-01-03 11:03:58.000000000 +0100
-+++ b/gcc/config/mips/mips.h	2019-04-11 11:48:30.936991476 +0200
-@@ -285,6 +285,7 @@
+--- a/gcc/config/mips/mips.h	2020-05-18 14:31:02.300576852 +1000
++++ b/gcc/config/mips/mips.h	2020-05-18 14:44:26.620597134 +1000
+@@ -287,6 +287,7 @@
  #define TARGET_SB1                  (mips_arch == PROCESSOR_SB1		\
  				     || mips_arch == PROCESSOR_SB1A)
  #define TARGET_SR71K                (mips_arch == PROCESSOR_SR71000)
@@ -441,15 +452,15 @@ diff --unified -rN a/gcc/config/mips/mips.h b/gcc/config/mips/mips.h
  #define TARGET_XLP                  (mips_arch == PROCESSOR_XLP)
  
  /* Scheduling target defines.  */
-@@ -315,6 +316,7 @@
+@@ -319,6 +320,7 @@
  				     || mips_tune == PROCESSOR_OCTEON3)
  #define TUNE_SB1                    (mips_tune == PROCESSOR_SB1		\
  				     || mips_tune == PROCESSOR_SB1A)
 +#define TUNE_ALLEGREX               (mips_tune == PROCESSOR_ALLEGREX)
  #define TUNE_P5600                  (mips_tune == PROCESSOR_P5600)
  #define TUNE_I6400                  (mips_tune == PROCESSOR_I6400)
- 
-@@ -1018,6 +1020,9 @@
+ #define TUNE_P6600                  (mips_tune == PROCESSOR_P6600)
+@@ -1058,6 +1060,9 @@
  				 && !TARGET_MIPS5900			\
  				 && !TARGET_MIPS16)
  
@@ -459,7 +470,7 @@ diff --unified -rN a/gcc/config/mips/mips.h b/gcc/config/mips/mips.h
  /* ISA has the mips4 FP condition code instructions: FP-compare to CC,
     branch on CC, and move (both FP and non-FP) on CC.  */
  #define ISA_HAS_8CC		(ISA_MIPS4				\
-@@ -1053,6 +1058,7 @@
+@@ -1093,6 +1098,7 @@
  
  /* ISA has conditional trap instructions.  */
  #define ISA_HAS_COND_TRAP	(!ISA_MIPS1				\
@@ -467,7 +478,7 @@ diff --unified -rN a/gcc/config/mips/mips.h b/gcc/config/mips/mips.h
  				 && !TARGET_MIPS16)
  
  /* ISA has conditional trap with immediate instructions.  */
-@@ -1112,7 +1118,8 @@
+@@ -1156,7 +1162,8 @@
  #define ISA_HAS_IEEE_754_2008	(mips_isa_rev >= 2)
  
  /* ISA has count leading zeroes/ones instruction (not implemented).  */
@@ -475,9 +486,9 @@ diff --unified -rN a/gcc/config/mips/mips.h b/gcc/config/mips/mips.h
 +#define ISA_HAS_CLZ_CLO		((mips_isa_rev >= 1 && !TARGET_MIPS16) \
 +                                 || TARGET_ALLEGREX)
  
- /* ISA has three operand multiply instructions that put
-    the high part in an accumulator: mulhi or mulhiu.  */
-@@ -1154,6 +1161,7 @@
+ /* ISA has count trailing zeroes/ones instruction.  */
+ #define ISA_HAS_CTZ_CTO		(TARGET_LOONGSON_EXT2)
+@@ -1201,6 +1208,7 @@
  				  || TARGET_MIPS5400			\
  				  || TARGET_MIPS5500			\
  				  || TARGET_SR71K			\
@@ -485,7 +496,7 @@ diff --unified -rN a/gcc/config/mips/mips.h b/gcc/config/mips/mips.h
  				  || TARGET_SMARTMIPS)			\
  				 && !TARGET_MIPS16)
  
-@@ -1183,10 +1191,12 @@
+@@ -1232,10 +1240,12 @@
  #define ISA_HAS_TRUNC_W		(!ISA_MIPS1)
  
  /* ISA includes the MIPS32r2 seb and seh instructions.  */
@@ -500,7 +511,7 @@ diff --unified -rN a/gcc/config/mips/mips.h b/gcc/config/mips/mips.h
  
  /* ISA has instructions for accessing top part of 64-bit fp regs.  */
  #define ISA_HAS_MXHC1		(!TARGET_FLOAT32	\
-@@ -1249,7 +1259,8 @@
+@@ -1298,7 +1308,8 @@
  #define ISA_HAS_HILO_INTERLOCKS	(mips_isa_rev >= 1			\
  				 || TARGET_MIPS5500			\
  				 || TARGET_MIPS5900			\
@@ -510,7 +521,7 @@ diff --unified -rN a/gcc/config/mips/mips.h b/gcc/config/mips/mips.h
  
  /* ISA includes synci, jr.hb and jalr.hb.  */
  #define ISA_HAS_SYNCI (mips_isa_rev >= 2 && !TARGET_MIPS16)
-@@ -2365,7 +2376,7 @@
+@@ -2421,7 +2432,7 @@
     `crtl->outgoing_args_size'.  */
  #define OUTGOING_REG_PARM_STACK_SPACE(FNTYPE) 1
  
@@ -519,7 +530,7 @@ diff --unified -rN a/gcc/config/mips/mips.h b/gcc/config/mips/mips.h
  
  /* Symbolic macros for the registers used to return integer and floating
     point values.  */
-@@ -2492,7 +2503,7 @@
+@@ -2548,7 +2559,7 @@
  /* Treat LOC as a byte offset from the stack pointer and round it up
     to the next fully-aligned offset.  */
  #define MIPS_STACK_ALIGN(LOC) \
@@ -528,7 +539,7 @@ diff --unified -rN a/gcc/config/mips/mips.h b/gcc/config/mips/mips.h
  
  
  /* Output assembler code to FILE to increment profiler label # LABELNO
-@@ -3141,6 +3152,9 @@
+@@ -3197,6 +3208,9 @@
  	" TEXT_SECTION_ASM_OP);
  #endif
  
@@ -539,8 +550,8 @@ diff --unified -rN a/gcc/config/mips/mips.h b/gcc/config/mips/mips.h
  #define HAVE_AS_TLS 0
  #endif
 diff --unified -rN a/gcc/config/mips/mips.md b/gcc/config/mips/mips.md
---- a/gcc/config/mips/mips.md	2018-01-03 11:03:58.000000000 +0100
-+++ b/gcc/config/mips/mips.md	2019-04-11 11:48:30.940991455 +0200
+--- a/gcc/config/mips/mips.md	2020-05-18 14:31:02.296576852 +1000
++++ b/gcc/config/mips/mips.md	2020-05-18 14:44:26.620597134 +1000
 @@ -35,6 +35,7 @@
    74kf2_1
    74kf1_1
@@ -548,8 +559,8 @@ diff --unified -rN a/gcc/config/mips/mips.md b/gcc/config/mips/mips.md
 +  allegrex
    loongson_2e
    loongson_2f
-   loongson_3a
-@@ -810,6 +811,7 @@
+   gs464
+@@ -813,6 +814,7 @@
  (define_mode_iterator MOVECC [SI (DI "TARGET_64BIT")
                                (CC "TARGET_HARD_FLOAT
  				   && !TARGET_LOONGSON_2EF
@@ -557,7 +568,7 @@ diff --unified -rN a/gcc/config/mips/mips.md b/gcc/config/mips/mips.md
  				   && !TARGET_MIPS5900")])
  
  ;; This mode iterator allows :FPCC to be used anywhere that an FP condition
-@@ -2248,11 +2250,11 @@
+@@ -2254,11 +2256,11 @@
  	   (mult:DI
  	      (any_extend:DI (match_operand:SI 1 "register_operand" "d"))
  	      (any_extend:DI (match_operand:SI 2 "register_operand" "d")))))]
@@ -571,7 +582,7 @@ diff --unified -rN a/gcc/config/mips/mips.md b/gcc/config/mips/mips.md
      return "msub<u>\t%1,%2";
    else
      return "msac<u>\t$0,%1,%2";
-@@ -2522,14 +2524,14 @@
+@@ -2528,14 +2530,14 @@
  	 (mult:DI (any_extend:DI (match_operand:SI 1 "register_operand" "d"))
  		  (any_extend:DI (match_operand:SI 2 "register_operand" "d")))
  	 (match_operand:DI 3 "muldiv_target_operand" "0")))]
@@ -588,7 +599,7 @@ diff --unified -rN a/gcc/config/mips/mips.md b/gcc/config/mips/mips.md
      return "madd<u>\t%1,%2";
    else
      /* See comment in *macc.  */
-@@ -3173,6 +3175,33 @@
+@@ -3196,6 +3198,33 @@
  ;;
  ;;  ....................
  ;;
@@ -622,7 +633,7 @@ diff --unified -rN a/gcc/config/mips/mips.md b/gcc/config/mips/mips.md
  ;;	NEGATION and ONE'S COMPLEMENT
  ;;
  ;;  ....................
-@@ -3225,6 +3254,25 @@
+@@ -3248,6 +3277,25 @@
     (set_attr "compression" "micromips,*")
     (set_attr "mode" "<MODE>")])
  
@@ -648,7 +659,7 @@ diff --unified -rN a/gcc/config/mips/mips.md b/gcc/config/mips/mips.md
  ;;
  ;;  ....................
  ;;
-@@ -7196,7 +7244,7 @@
+@@ -7282,7 +7330,7 @@
  		 (const_int 0)])
  	 (match_operand:GPR 2 "reg_or_0_operand" "dJ,0")
  	 (match_operand:GPR 3 "reg_or_0_operand" "0,dJ")))]
@@ -657,7 +668,7 @@ diff --unified -rN a/gcc/config/mips/mips.md b/gcc/config/mips/mips.md
    "@
      mov%T4\t%0,%z2,%1
      mov%t4\t%0,%z3,%1"
-@@ -7274,7 +7322,7 @@
+@@ -7360,7 +7408,7 @@
  	(if_then_else:GPR (match_dup 5)
  			  (match_operand:GPR 2 "reg_or_0_operand")
  			  (match_operand:GPR 3 "reg_or_0_operand")))]
@@ -666,7 +677,7 @@ diff --unified -rN a/gcc/config/mips/mips.md b/gcc/config/mips/mips.md
  {
    if (!ISA_HAS_FP_CONDMOVE
        && !INTEGRAL_MODE_P (GET_MODE (XEXP (operands[1], 0))))
-@@ -7694,6 +7742,9 @@
+@@ -7780,6 +7828,9 @@
  ; The MIPS MSA Instructions.
  (include "mips-msa.md")
  
@@ -677,9 +688,9 @@ diff --unified -rN a/gcc/config/mips/mips.md b/gcc/config/mips/mips.md
    UNSPEC_ADDRESS_FIRST
  ])
 diff --unified -rN a/gcc/config/mips/mips.opt b/gcc/config/mips/mips.opt
---- a/gcc/config/mips/mips.opt	2018-01-03 11:03:58.000000000 +0100
-+++ b/gcc/config/mips/mips.opt	2019-04-11 11:48:30.940991455 +0200
-@@ -428,6 +428,10 @@
+--- a/gcc/config/mips/mips.opt	2020-05-18 14:31:02.296576852 +1000
++++ b/gcc/config/mips/mips.opt	2020-05-18 14:44:26.620597134 +1000
+@@ -440,6 +440,10 @@
  Target Report Var(flag_frame_header_optimization) Optimization
  Optimize frame header.
  
@@ -691,8 +702,8 @@ diff --unified -rN a/gcc/config/mips/mips.opt b/gcc/config/mips/mips.opt
  Driver
  
 diff --unified -rN a/gcc/config/mips/psp.h b/gcc/config/mips/psp.h
---- a/gcc/config/mips/psp.h	1970-01-01 01:00:00.000000000 +0100
-+++ b/gcc/config/mips/psp.h	2019-04-11 11:48:30.940991455 +0200
+--- a/gcc/config/mips/psp.h	1970-01-01 10:00:00.000000000 +1000
++++ b/gcc/config/mips/psp.h	2020-05-18 14:44:26.620597134 +1000
 @@ -0,0 +1,33 @@
 +/* Support for Sony's Playstation Portable (PSP).
 +   Copyright (C) 2005 Free Software Foundation, Inc.
@@ -728,8 +739,8 @@ diff --unified -rN a/gcc/config/mips/psp.h b/gcc/config/mips/psp.h
 +
 +#include "../newlib-stdint.h"
 diff --unified -rN a/gcc/config/mips/t-allegrex b/gcc/config/mips/t-allegrex
---- a/gcc/config/mips/t-allegrex	1970-01-01 01:00:00.000000000 +0100
-+++ b/gcc/config/mips/t-allegrex	2019-04-11 11:48:30.940991455 +0200
+--- a/gcc/config/mips/t-allegrex	1970-01-01 10:00:00.000000000 +1000
++++ b/gcc/config/mips/t-allegrex	2020-05-18 14:44:26.620597134 +1000
 @@ -0,0 +1,29 @@
 +# Suppress building libgcc1.a, since the MIPS compiler port is complete
 +# and does not need anything from libgcc1.a.
@@ -761,9 +772,9 @@ diff --unified -rN a/gcc/config/mips/t-allegrex b/gcc/config/mips/t-allegrex
 +LIBGCC = stmp-multilib
 +INSTALL_LIBGCC = install-multilib
 diff --unified -rN a/gcc/config.gcc b/gcc/config.gcc
---- a/gcc/config.gcc	2019-01-29 16:31:10.000000000 +0100
-+++ b/gcc/config.gcc	2019-04-11 11:48:40.704941394 +0200
-@@ -2318,6 +2318,18 @@
+--- a/gcc/config.gcc	2020-05-18 14:31:02.372576854 +1000
++++ b/gcc/config.gcc	2020-05-18 14:44:28.804597189 +1000
+@@ -2457,6 +2457,18 @@
  	tm_file="elfos.h newlib-stdint.h ${tm_file} mips/r3900.h mips/elf.h"
  	tmake_file="mips/t-r3900"
  	;;
@@ -783,8 +794,8 @@ diff --unified -rN a/gcc/config.gcc b/gcc/config.gcc
  	tm_file="${tm_file} newlib-stdint.h"
  	use_gcc_stdint=wrap
 diff --unified -rN a/libcpp/Makefile.in b/libcpp/Makefile.in
---- a/libcpp/Makefile.in	2019-02-22 15:22:13.000000000 +0100
-+++ b/libcpp/Makefile.in	2019-04-11 11:48:30.940991455 +0200
+--- a/libcpp/Makefile.in	2020-05-18 14:31:02.248576851 +1000
++++ b/libcpp/Makefile.in	2020-05-18 14:44:26.576597133 +1000
 @@ -208,8 +208,8 @@
  # Note that we put the dependencies into a .Tpo file, then move them
  # into place if the compile succeeds.  We need this because gcc does
@@ -797,8 +808,8 @@ diff --unified -rN a/libcpp/Makefile.in b/libcpp/Makefile.in
  COMPILE = source='$<' object='$@' libtool=no DEPDIR=$(DEPDIR) $(DEPMODE) \
  	  $(depcomp) $(COMPILE.base)
 diff --unified -rN a/libgcc/config/mips/psp.h b/libgcc/config/mips/psp.h
---- a/libgcc/config/mips/psp.h	1970-01-01 01:00:00.000000000 +0100
-+++ b/libgcc/config/mips/psp.h	2019-04-11 11:48:30.940991455 +0200
+--- a/libgcc/config/mips/psp.h	1970-01-01 10:00:00.000000000 +1000
++++ b/libgcc/config/mips/psp.h	2020-05-18 14:44:26.284597126 +1000
 @@ -0,0 +1,31 @@
 +/* Support for Sony's Playstation Portable (PSP).
 +   Copyright (C) 2005 Free Software Foundation, Inc.
@@ -832,8 +843,8 @@ diff --unified -rN a/libgcc/config/mips/psp.h b/libgcc/config/mips/psp.h
 +#undef SUBTARGET_ASM_SPEC
 +#define SUBTARGET_ASM_SPEC "-mno-pdr"
 diff --unified -rN a/libgcc/config/mips/t-allegrex b/libgcc/config/mips/t-allegrex
---- a/libgcc/config/mips/t-allegrex	1970-01-01 01:00:00.000000000 +0100
-+++ b/libgcc/config/mips/t-allegrex	2019-04-11 11:48:30.940991455 +0200
+--- a/libgcc/config/mips/t-allegrex	1970-01-01 10:00:00.000000000 +1000
++++ b/libgcc/config/mips/t-allegrex	2020-05-18 14:44:26.284597126 +1000
 @@ -0,0 +1,20 @@
 +# Suppress building libgcc1.a, since the MIPS compiler port is complete
 +# and does not need anything from libgcc1.a.
@@ -856,8 +867,8 @@ diff --unified -rN a/libgcc/config/mips/t-allegrex b/libgcc/config/mips/t-allegr
 +LIBGCC = stmp-multilib
 +INSTALL_LIBGCC = install-multilib
 diff --unified -rN a/libgcc/config/t-hardfp-sf b/libgcc/config/t-hardfp-sf
---- a/libgcc/config/t-hardfp-sf	1970-01-01 01:00:00.000000000 +0100
-+++ b/libgcc/config/t-hardfp-sf	2019-04-11 11:48:30.968991312 +0200
+--- a/libgcc/config/t-hardfp-sf	1970-01-01 10:00:00.000000000 +1000
++++ b/libgcc/config/t-hardfp-sf	2020-05-18 14:44:26.324597127 +1000
 @@ -0,0 +1,32 @@
 +# Copyright (C) 2014 Free Software Foundation, Inc.
 +
@@ -892,9 +903,9 @@ diff --unified -rN a/libgcc/config/t-hardfp-sf b/libgcc/config/t-hardfp-sf
 +    _lt_sf _le_sf _unord_sf _si_to_sf _sf_to_si _negate_sf \
 +    _thenan_sf _sf_to_usi _usi_to_sf
 diff --unified -rN a/libgcc/config.host b/libgcc/config.host
---- a/libgcc/config.host	2018-04-06 22:04:17.000000000 +0200
-+++ b/libgcc/config.host	2019-04-11 11:48:30.968991312 +0200
-@@ -140,11 +140,15 @@
+--- a/libgcc/config.host	2020-05-18 14:31:01.968576844 +1000
++++ b/libgcc/config.host	2020-05-18 14:44:26.328597127 +1000
+@@ -147,11 +147,15 @@
  	cpu_type=microblaze
  	;;
  mips*-*-*)
@@ -912,7 +923,7 @@ diff --unified -rN a/libgcc/config.host b/libgcc/config.host
  	else
  		tmake_file="${tmake_file} t-softfp-sfdf"
  	fi
-@@ -959,6 +963,14 @@
+@@ -987,6 +991,14 @@
  mipstx39-*-elf* | mipstx39el-*-elf*)
  	tmake_file="$tmake_file mips/t-crtstuff mips/t-mips16"
  	;;
@@ -928,9 +939,9 @@ diff --unified -rN a/libgcc/config.host b/libgcc/config.host
  	extra_parts="crti.o crtn.o crtbegin.o crtend.o"
  	tmake_file="${tmake_file} ${cpu_type}/t-${cpu_type}"
 diff --unified -rN a/libgcc/configure b/libgcc/configure
---- a/libgcc/configure	2018-04-24 18:45:26.000000000 +0200
-+++ b/libgcc/configure	2019-04-11 11:48:30.968991312 +0200
-@@ -4957,6 +4957,26 @@
+--- a/libgcc/configure	2020-05-18 14:31:01.972576844 +1000
++++ b/libgcc/configure	2020-05-18 14:44:26.328597127 +1000
+@@ -5036,6 +5036,26 @@
  fi
  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $libgcc_cv_mips_hard_float" >&5
  $as_echo "$libgcc_cv_mips_hard_float" >&6; }
@@ -958,10 +969,10 @@ diff --unified -rN a/libgcc/configure b/libgcc/configure
  
  case ${host} in
 diff --unified -rN a/libgcc/configure.ac b/libgcc/configure.ac
---- a/libgcc/configure.ac	2018-02-28 09:59:15.000000000 +0100
-+++ b/libgcc/configure.ac	2019-04-11 11:48:30.968991312 +0200
-@@ -296,6 +296,14 @@
-      #endif],
+--- a/libgcc/configure.ac	2020-05-18 14:31:01.972576844 +1000
++++ b/libgcc/configure.ac	2020-05-18 14:44:26.328597127 +1000
+@@ -302,6 +302,14 @@
+     ])],
      [libgcc_cv_mips_hard_float=yes],
      [libgcc_cv_mips_hard_float=no])])
 +  AC_CACHE_CHECK([whether the target is single-float],
@@ -976,8 +987,8 @@ diff --unified -rN a/libgcc/configure.ac b/libgcc/configure.ac
  
  case ${host} in
 diff --unified -rN a/libgcc/crtstuff.c b/libgcc/crtstuff.c
---- a/libgcc/crtstuff.c	2018-01-03 11:03:58.000000000 +0100
-+++ b/libgcc/crtstuff.c	2019-04-11 11:48:30.968991312 +0200
+--- a/libgcc/crtstuff.c	2020-05-18 14:31:01.968576844 +1000
++++ b/libgcc/crtstuff.c	2020-05-18 14:44:26.328597127 +1000
 @@ -47,7 +47,7 @@
  
  /* Target machine header files require this define. */
